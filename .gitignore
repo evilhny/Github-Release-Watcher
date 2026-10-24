@@ -1,0 +1,27 @@
+
+# Build output
+bin/
+obj/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Logs and temporary files
+*.log
+*.tmp
+startup-log.txt
+
+# Local settings and secrets
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+secrets.json
+
+# OS files
+Thumbs.db
+.DS_Store
+desktop.ini
