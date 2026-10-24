@@ -1,0 +1,63 @@
+
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source code
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore GitHubReleaseWatcher.csproj
+
+      - name: Build application
+        run: dotnet build GitHubReleaseWatcher.csproj --configuration Release --no-restore
+
+      - name: Publish self-contained Windows application
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: >-
+          dotnet publish GitHubReleaseWatcher.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          --output ./publish
+
+      - name: Rename executable
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+          Rename-Item "./publish/GitHubReleaseWatcher.exe" "GitHubWatcher-$version.exe"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: GitHub Release Watcher ${{ github.ref_name }}
+          generate_release_notes: true
+          files: ./publish/GitHubWatcher-*.exe
