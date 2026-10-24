@@ -11,6 +11,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version without v (e.g. 0.2)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -28,6 +33,25 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Determine version
+        id: version
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = $env:INPUT_VERSION
+          } else {
+            $version = "${{ github.ref_name }}" -replace '^v', ''
+          }
+
+          if ($version -notmatch '^\d+\.\d+(\.\d+)?$') {
+            throw "Invalid version '$version'. Use a version such as 0.2 or 1.0.0."
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+
       - name: Restore dependencies
         run: dotnet restore GitHubReleaseWatcher.csproj
 
@@ -35,7 +59,7 @@ jobs:
         run: dotnet build GitHubReleaseWatcher.csproj --configuration Release --no-restore
 
       - name: Publish self-contained Windows application
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         run: >-
           dotnet publish GitHubReleaseWatcher.csproj
           --configuration Release
@@ -47,17 +71,35 @@ jobs:
           --output ./publish
 
       - name: Rename executable
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          Rename-Item "./publish/GitHubReleaseWatcher.exe" "GitHubWatcher-$env:RELEASE_VERSION.exe"
+
+      - name: Create version tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-          $version = $tag -replace '^v', ''
-          Rename-Item "./publish/GitHubReleaseWatcher.exe" "GitHubWatcher-$version.exe"
+          $tag = $env:RELEASE_TAG
+          gh api "repos/${{ github.repository }}/git/ref/tags/$tag" --silent 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Tag $tag already exists. Choose a new version."
+          }
+
+          gh api "repos/${{ github.repository }}/git/refs" `
+            -f "ref=refs/tags/$tag" `
+            -f "sha=${{ github.sha }}"
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: GitHub Release Watcher ${{ github.ref_name }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: GitHub Release Watcher v${{ steps.version.outputs.version }}
           generate_release_notes: true
           files: ./publish/GitHubWatcher-*.exe
