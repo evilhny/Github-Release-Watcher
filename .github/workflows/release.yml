@@ -95,11 +95,18 @@ jobs:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           $tag = $env:RELEASE_TAG
-          gh api "repos/${{ github.repository }}/git/ref/tags/$tag" --silent 2>$null
+          $response = gh api "repos/${{ github.repository }}/git/ref/tags/$tag" 2>&1
+          $exitCode = $LASTEXITCODE
 
-          if ($LASTEXITCODE -eq 0) {
+          if ($exitCode -eq 0) {
             throw "Tag $tag already exists. Choose a new version."
           }
+
+          if ("$response" -notmatch 'HTTP 404|Not Found|404') {
+            throw "Could not verify whether tag $tag exists. GitHub API response: $response"
+          }
+
+          Write-Host "Tag $tag does not exist. Proceeding."
 
       - name: Create version tag
         if: github.event_name == 'workflow_dispatch'
