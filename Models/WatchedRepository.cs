@@ -42,6 +42,7 @@ public sealed class AppSettings
     public bool MinimizeToTrayOnClose { get; set; } = true;
     public bool NotificationsEnabled { get; set; } = true;
     public bool IncludePrereleases { get; set; } = true;
+    public DateTimeOffset? LastCheckAt { get; set; }
     public List<WatchedRepository> Repositories { get; set; } = [];
     public List<ReleaseRecord> ReleaseHistory { get; set; } = [];
 }

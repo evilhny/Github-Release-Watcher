@@ -54,6 +54,9 @@ public partial class MainWindow : Window
         PrereleaseCheckBox.IsChecked = _settings.IncludePrereleases;
 
         _settings.RunAtStartup = StartupCheckBox.IsChecked == true;
+        LastCheckText.Text = _settings.LastCheckAt.HasValue
+            ? $"Last checked: {_settings.LastCheckAt.Value.ToLocalTime():yyyy-MM-dd HH:mm:ss}"
+            : "Last checked: Never";
         _loadingUi = false;
 
         HistoryGrid.ItemsSource = History;
@@ -183,11 +186,11 @@ public partial class MainWindow : Window
             }
 
             SortHistory();
+
+            // Persist the time this overall check completed, including partial failures.
+            _settings.LastCheckAt = DateTimeOffset.Now;
+            LastCheckText.Text = $"Last checked: {_settings.LastCheckAt.Value.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
             SaveSettings();
-
-            var now = DateTime.Now;
-
-            LastCheckText.Text = $"Last check: {now:yyyy-MM-dd HH:mm:ss}";
 
             StatusText.Text = errors.Count == 0
                 ? $"Checked {checkedCount} repository/repositories. {addedCount} new release(s) found."

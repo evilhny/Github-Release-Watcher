@@ -249,12 +249,6 @@
                                TextWrapping="Wrap"
                                Foreground="#687386"/>
 
-                    <TextBlock x:Name="LastCheckText"
-                               Text="Not checked yet"
-                               TextWrapping="Wrap"
-                               Foreground="#687386"
-                               Margin="0,8,0,0"/>
-
                     <Button Content="Open selected release"
                             HorizontalAlignment="Left"
                             Margin="0,14,0,0"
@@ -264,11 +258,27 @@
         </Grid>
 
         <!-- Footer -->
-        <TextBlock Grid.Row="3"
-                   x:Name="FooterText"
-                   Margin="2,12,0,0"
-                   Foreground="#687386"
-                   Text="Ready. Add a public GitHub repository to begin."/>
+        <Grid Grid.Row="3" Margin="2,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       x:Name="FooterText"
+                       VerticalAlignment="Center"
+                       Foreground="#687386"
+                       Text="Ready. Add a public GitHub repository to begin."
+                       TextTrimming="CharacterEllipsis"/>
+
+            <TextBlock Grid.Column="1"
+                       x:Name="LastCheckText"
+                       Margin="16,0,0,0"
+                       VerticalAlignment="Center"
+                       Foreground="#687386"
+                       Text="Last checked: Never"
+                       ToolTip="Date and time the last repository check completed"/>
+        </Grid>
 
         <!-- System tray -->
         <tb:TaskbarIcon x:Name="TrayIcon"
