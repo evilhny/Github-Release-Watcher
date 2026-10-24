@@ -95,18 +95,36 @@ jobs:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           $tag = $env:RELEASE_TAG
-          $response = gh api "repos/${{ github.repository }}/git/ref/tags/$tag" 2>&1
-          $exitCode = $LASTEXITCODE
+          $url = "https://api.github.com/repos/${{ github.repository }}/git/ref/tags/$tag"
 
-          if ($exitCode -eq 0) {
+          try {
+            $null = Invoke-RestMethod `
+              -Uri $url `
+              -Headers @{
+                Authorization = "Bearer $env:GH_TOKEN"
+                Accept = "application/vnd.github+json"
+                "X-GitHub-Api-Version" = "2022-11-28"
+              }
+
             throw "Tag $tag already exists. Choose a new version."
           }
+          catch {
+            if ($_.Exception.Message -like "Tag $tag already exists*") {
+              throw
+            }
 
-          if ("$response" -notmatch 'HTTP 404|Not Found|404') {
-            throw "Could not verify whether tag $tag exists. GitHub API response: $response"
+            $statusCode = 0
+            if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+              $statusCode = [int]$_.Exception.Response.StatusCode
+            }
+
+            if ($statusCode -eq 404) {
+              Write-Host "Tag $tag does not exist. Proceeding."
+            }
+            else {
+              throw "Unable to check tag $tag. HTTP status: $statusCode. $($_.Exception.Message)"
+            }
           }
-
-          Write-Host "Tag $tag does not exist. Proceeding."
 
       - name: Create version tag
         if: github.event_name == 'workflow_dispatch'
@@ -116,9 +134,23 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
         shell: pwsh
         run: |
-          gh api "repos/${{ github.repository }}/git/refs" `
-            -f "ref=refs/tags/$env:RELEASE_TAG" `
-            -f "sha=$env:COMMIT_SHA"
+          $body = @{
+            ref = "refs/tags/$env:RELEASE_TAG"
+            sha = $env:COMMIT_SHA
+          } | ConvertTo-Json
+
+          $null = Invoke-RestMethod `
+            -Method Post `
+            -Uri "https://api.github.com/repos/${{ github.repository }}/git/refs" `
+            -Headers @{
+              Authorization = "Bearer $env:GH_TOKEN"
+              Accept = "application/vnd.github+json"
+              "X-GitHub-Api-Version" = "2022-11-28"
+            } `
+            -ContentType "application/json" `
+            -Body $body
+
+          Write-Host "Created tag $env:RELEASE_TAG"
 
       - name: Create GitHub Release
         if: steps.version.outputs.tag != ''
