@@ -2,6 +2,10 @@
 
 A lightweight Windows desktop app built with C# and WPF. It polls the GitHub REST API for releases, keeps local release history, and can notify when new releases are detected.
 
+## Screenshot
+
+![GitHub Release Watcher screenshot](screenshots/main-window.png)
+
 ## Features
 
 - Add public repositories as `owner/repo` or paste a GitHub repository URL.
